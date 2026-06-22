@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Monte Carlo Options Pricing &amp; VaR Dashboard</title>
+<meta name="description" content="Interactive dashboard pricing European options via Black-Scholes and Monte Carlo simulation, with Greeks and simulated VaR/Expected Shortfall for option positions.">
+<style>
+:root{
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+  --color-background-primary: #ffffff;
+  --color-background-secondary: #F6F5F2;
+  --color-background-tertiary: #ECEAE4;
+  --color-background-info: #E6F1FB;
+
+  --color-text-primary: #1B1B18;
+  --color-text-secondary: #6E6D67;
+  --color-text-tertiary: #9D9C95;
+  --color-text-info: #185FA5;
+
+  --color-border-tertiary: #E9E7E1;
+  --color-border-secondary: #D9D7D0;
+  --color-border-info: #B7D6F0;
+
+  --border-radius-lg: 10px;
+  --border-radius-md: 6px;
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  font-family:var(--font-sans);
+  background:#FBFAF8;
+  color:var(--color-text-primary);
+  -webkit-font-smoothing:antialiased;
+}
+
+.page-wrap{max-width:1080px;margin:0 auto;padding:2.5rem 1.5rem 4rem}
+
+.page-header{margin-bottom:1.5rem}
+.page-header h1{font-size:22px;font-weight:600;letter-spacing:-0.01em;margin:0 0 .4rem;color:var(--color-text-primary)}
+.page-header p{font-size:13px;line-height:1.6;color:var(--color-text-secondary);max-width:680px;margin:0}
+
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+
+.icon{width:14px;height:14px;flex-shrink:0;vertical-align:-2px}
+
+.dashboard{padding:0 !important}
+
+footer.page-footer{margin-top:2rem;font-size:11px;color:var(--color-text-tertiary);text-align:center}
+footer.page-footer a{color:var(--color-text-secondary);text-decoration:none;border-bottom:1px solid var(--color-border-secondary)}
+</style>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans)}
+.dashboard{padding:1rem 0}
+.section-label{font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--color-text-tertiary);margin-bottom:.5rem}
+.panel{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1rem 1.25rem;margin-bottom:1rem}
+.panel-title{font-size:14px;font-weight:500;color:var(--color-text-primary);margin-bottom:.75rem;display:flex;align-items:center;gap:6px}
+.controls-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:1rem}
+.ctrl{display:flex;flex-direction:column;gap:4px}
+.ctrl label{font-size:12px;color:var(--color-text-secondary)}
+.ctrl-row{display:flex;align-items:center;gap:8px}
+.ctrl-row input[type=range]{flex:1}
+.ctrl-val{font-size:13px;font-weight:500;min-width:44px;text-align:right;color:var(--color-text-primary)}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:1rem}
+.metric{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:.75rem 1rem}
+.metric-label{font-size:11px;color:var(--color-text-secondary);margin-bottom:4px}
+.metric-value{font-size:20px;font-weight:500;color:var(--color-text-primary)}
+.metric-sub{font-size:11px;color:var(--color-text-secondary);margin-top:2px}
+.metric-value.red{color:#A32D2D}.metric-value.green{color:#3B6D11}.metric-value.blue{color:#185FA5}.metric-value.amber{color:#854F0B}
+.charts-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1rem}
+.chart-wrap{position:relative;height:220px}
+.chart-wrap-tall{position:relative;height:260px;margin-bottom:1rem}
+.legend-row{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:6px;font-size:11px;color:var(--color-text-secondary)}
+.leg-dot{width:10px;height:10px;border-radius:2px;display:inline-block;margin-right:3px;vertical-align:middle}
+.tabs{display:flex;gap:4px;margin-bottom:.75rem}
+.tab{font-size:12px;padding:4px 12px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:transparent;cursor:pointer;color:var(--color-text-secondary)}
+.tab.active{background:var(--color-background-info);color:var(--color-text-info);border-color:var(--color-border-info)}
+.explanation{font-size:12px;color:var(--color-text-secondary);line-height:1.6;padding:.75rem;background:var(--color-background-secondary);border-radius:var(--border-radius-md);border-left:2px solid var(--color-border-info)}
+.run-btn{padding:6px 20px;font-size:13px;font-weight:500;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:var(--color-background-secondary);cursor:pointer;color:var(--color-text-primary);transition:background .15s}
+.run-btn:hover{background:var(--color-background-tertiary)}
+.tag{display:inline-block;font-size:10px;padding:2px 7px;border-radius:var(--border-radius-md);margin-left:6px;font-weight:500}
+.tag-bs{background:#E6F1FB;color:#185FA5}.tag-mc{background:#EAF3DE;color:#3B6D11}
+.formula{font-family:var(--font-mono);font-size:11px;background:var(--color-background-secondary);padding:6px 10px;border-radius:var(--border-radius-md);color:var(--color-text-secondary);margin-top:4px;line-height:1.8}
+</style>
+</head>
+<body>
+<div class="page-wrap">
+<div class="dashboard">
+<header class="page-header">
+  <h1>Monte Carlo Options Pricing &amp; VaR Dashboard</h1>
+  <p>European options priced two ways &mdash; closed-form Black-Scholes and Monte Carlo simulation over simulated GBM price paths &mdash; alongside Greeks and a simulated Value-at-Risk / Expected-Shortfall view for long call, long put, and straddle positions.</p>
+</header>
+
+<div class="panel">
+  <div class="panel-title"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2" fill="currentColor" stroke="none"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="2" fill="currentColor" stroke="none"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="11" cy="18" r="2" fill="currentColor" stroke="none"/></svg> Model parameters</div>
+  <div class="controls-grid">
+    <div class="ctrl"><label>Spot price S₀ (₹)</label><div class="ctrl-row"><input type="range" id="S" min="50" max="200" step="1" value="100"><span class="ctrl-val" id="Sv">₹100</span></div></div>
+    <div class="ctrl"><label>Strike price K (₹)</label><div class="ctrl-row"><input type="range" id="K" min="50" max="200" step="1" value="105"><span class="ctrl-val" id="Kv">₹105</span></div></div>
+    <div class="ctrl"><label>Volatility σ (%)</label><div class="ctrl-row"><input type="range" id="sigma" min="5" max="80" step="1" value="20"><span class="ctrl-val" id="sigmav">20%</span></div></div>
+    <div class="ctrl"><label>Risk-free rate r (%)</label><div class="ctrl-row"><input type="range" id="r" min="1" max="15" step="0.5" value="6"><span class="ctrl-val" id="rv">6%</span></div></div>
+    <div class="ctrl"><label>Time to expiry T (yrs)</label><div class="ctrl-row"><input type="range" id="T" min="0.1" max="2" step="0.1" value="0.5"><span class="ctrl-val" id="Tv">0.5yr</span></div></div>
+    <div class="ctrl"><label>Simulations N</label><div class="ctrl-row"><input type="range" id="N" min="1000" max="50000" step="1000" value="10000"><span class="ctrl-val" id="Nv">10k</span></div></div>
+  </div>
+  <button class="run-btn" id="runBtn"><svg class="icon" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M7 4.5v15l13-7.5z"/></svg> Run simulation</button>
+</div>
+
+<div class="metrics" id="metrics"></div>
+
+<div class="charts-row">
+  <div class="panel">
+    <div class="panel-title"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19h16"/><path d="M4 19V5"/><path d="M4 14l4-4 3 3 6-7"/></svg> Simulated price paths <span class="tag tag-mc">Monte Carlo</span></div>
+    <div class="chart-wrap"><canvas id="pathChart" role="img" aria-label="Sample of 20 simulated GBM price paths over the option lifetime"></canvas></div>
+  </div>
+  <div class="panel">
+    <div class="panel-title"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19h16"/><rect x="6" y="12" width="2.4" height="7"/><rect x="11" y="8" width="2.4" height="11"/><rect x="16" y="14" width="2.4" height="5"/></svg> Terminal price distribution</div>
+    <div class="legend-row">
+      <span><span class="leg-dot" style="background:#185FA5"></span>S_T distribution</span>
+      <span><span class="leg-dot" style="background:#A32D2D"></span>Strike K</span>
+    </div>
+    <div class="chart-wrap"><canvas id="distChart" role="img" aria-label="Histogram of terminal stock prices from Monte Carlo simulation"></canvas></div>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-title"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 5-3 8-7 9-4-1-7-4-7-9V6z"/><line x1="12" y1="8" x2="12" y2="13"/><circle cx="12" cy="16.3" r="0.6" fill="currentColor" stroke="none"/></svg> Portfolio VaR analysis <span class="tag tag-mc">Monte Carlo</span></div>
+  <div class="tabs">
+    <button class="tab active" data-opt="call">Long call</button>
+    <button class="tab" data-opt="put">Long put</button>
+    <button class="tab" data-opt="straddle">Straddle</button>
+  </div>
+  <div class="metrics" id="var-metrics"></div>
+  <div class="legend-row" id="var-legend"></div>
+  <div class="chart-wrap-tall"><canvas id="varChart" role="img" aria-label="P&L distribution histogram with VaR and Expected Shortfall markers"></canvas></div>
+  <div class="explanation" id="var-explain"></div>
+</div>
+
+<div class="panel">
+  <div class="panel-title"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 6h14l-6 6 6 6H5"/></svg> Options Greeks <span class="tag tag-bs">Black-Scholes analytical</span></div>
+  <div class="legend-row">
+    <span><span class="leg-dot" style="background:#185FA5"></span>Call</span>
+    <span><span class="leg-dot" style="background:#A32D2D"></span>Put</span>
+    <span><span class="leg-dot" style="background:#888780"></span>Strike K</span>
+  </div>
+  <div class="charts-row">
+    <div><div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:4px">Delta — sensitivity to spot</div><div style="height:150px;position:relative"><canvas id="deltaChart" role="img" aria-label="Delta of call and put vs spot price"></canvas></div></div>
+    <div><div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:4px">Gamma — rate of delta change</div><div style="height:150px;position:relative"><canvas id="gammaChart" role="img" aria-label="Gamma of option vs spot price"></canvas></div></div>
+    <div><div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:4px">Vega — sensitivity to vol (×0.01)</div><div style="height:150px;position:relative"><canvas id="vegaChart" role="img" aria-label="Vega of option vs spot price"></canvas></div></div>
+    <div><div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:4px">Theta — time decay (daily)</div><div style="height:150px;position:relative"><canvas id="thetaChart" role="img" aria-label="Theta of call and put vs spot price"></canvas></div></div>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-title"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4c4 0 3 16 -2 16"/><path d="M6 11h6"/></svg> Model mechanics</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+    <div>
+      <div style="font-size:12px;font-weight:500;color:var(--color-text-primary);margin-bottom:4px">GBM price path (risk-neutral)</div>
+      <div class="formula">S(t+dt) = S(t) · exp[(r − σ²/2)dt + σ√dt · Z]<br>Z ~ N(0,1)  |  antithetic variates used</div>
+      <div style="font-size:11px;color:var(--color-text-secondary);margin-top:6px">Each path discretises over 252 trading steps. Antithetic variates (pairing Z with −Z) halves variance of the estimator without extra computation.</div>
+    </div>
+    <div>
+      <div style="font-size:12px;font-weight:500;color:var(--color-text-primary);margin-bottom:4px">VaR & Expected Shortfall (ES)</div>
+      <div class="formula">VaR₉₉ = −Percentile(P&L, 1%)<br>ES₉₉  = −E[P&L | P&L ≤ −VaR₉₉]</div>
+      <div style="font-size:11px;color:var(--color-text-secondary);margin-top:6px">ES (CVaR) answers "given we're in the tail, how bad is it on average?" — preferred over VaR under Basel III for its sub-additivity and tail-sensitivity.</div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let charts = {};
+let currentOpt = 'call';
+
+function norm(z){
+  const a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911;
+  const sign=z<0?-1:1; const x=Math.abs(z)/Math.sqrt(2);
+  const t=1/(1+p*x);
+  const y=1-(((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-x*x);
+  return 0.5*(1+sign*y);
+}
+function normPDF(z){ return Math.exp(-0.5*z*z)/Math.sqrt(2*Math.PI); }
+
+function bsPrice(S,K,T,r,sigma){
+  if(T<=0) return {call:Math.max(S-K,0),put:Math.max(K-S,0),d1:0,d2:0};
+  const d1=(Math.log(S/K)+(r+0.5*sigma*sigma)*T)/(sigma*Math.sqrt(T));
+  const d2=d1-sigma*Math.sqrt(T);
+  const call=S*norm(d1)-K*Math.exp(-r*T)*norm(d2);
+  const put=K*Math.exp(-r*T)*norm(-d2)-S*norm(-d1);
+  return {call,put,d1,d2};
+}
+
+function bsGreeks(S,K,T,r,sigma){
+  if(T<=0.0001) T=0.0001;
+  const sqrtT=Math.sqrt(T);
+  const d1=(Math.log(S/K)+(r+0.5*sigma*sigma)*T)/(sigma*sqrtT);
+  const d2=d1-sigma*sqrtT;
+  const deltaCall=norm(d1);
+  const deltaPut=deltaCall-1;
+  const gamma=normPDF(d1)/(S*sigma*sqrtT);
+  const vega=S*normPDF(d1)*sqrtT;
+  const thetaCall=(-(S*normPDF(d1)*sigma)/(2*sqrtT)-r*K*Math.exp(-r*T)*norm(d2))/365;
+  const thetaPut=(-(S*normPDF(d1)*sigma)/(2*sqrtT)+r*K*Math.exp(-r*T)*norm(-d2))/365;
+  return {deltaCall,deltaPut,gamma,vega,thetaCall,thetaPut};
+}
+
+function boxMullerPair(){
+  const u1=Math.random(),u2=Math.random();
+  const mag=Math.sqrt(-2*Math.log(u1));
+  return [mag*Math.cos(2*Math.PI*u2), mag*Math.sin(2*Math.PI*u2)];
+}
+
+function runMC(S0,K,T,r,sigma,N){
+  const steps=252;
+  const dt=T/steps;
+  const drift=(r-0.5*sigma*sigma)*dt;
+  const diffusion=sigma*Math.sqrt(dt);
+  const terminals=[];
+  const samplePaths=[];
+  const numSample=20;
+
+  for(let i=0;i<N/2;i++){
+    const [z1,z2]=boxMullerPair();
+    let s1=S0,s2=S0;
+    const path1=[S0],path2=[S0];
+    const storePath=(i<numSample/2);
+    for(let t=0;t<steps;t++){
+      const randZ=(t%2===0)?boxMullerPair()[0]:boxMullerPair()[1];
+      s1*=Math.exp(drift+diffusion*z1*(t===0?1:boxMullerPair()[0]));
+      s2*=Math.exp(drift+diffusion*(-z1)*(t===0?1:boxMullerPair()[0]));
+      if(storePath&&t%12===0){path1.push(s1);path2.push(s2);}
+    }
+    // simplified: direct terminal
+    const z=boxMullerPair()[0];
+    const logS=Math.log(S0)+(r-0.5*sigma*sigma)*T+sigma*Math.sqrt(T)*z;
+    const logSA=Math.log(S0)+(r-0.5*sigma*sigma)*T+sigma*Math.sqrt(T)*(-z);
+    terminals.push(Math.exp(logS));
+    terminals.push(Math.exp(logSA));
+  }
+
+  // generate sample paths properly
+  for(let p=0;p<numSample;p++){
+    const path=[S0];
+    let s=S0;
+    for(let t=0;t<steps;t++){
+      const z=boxMullerPair()[0];
+      s*=Math.exp(drift+diffusion*z);
+      if(t%12===0||t===steps-1) path.push(s);
+    }
+    samplePaths.push(path);
+  }
+
+  return {terminals, samplePaths};
+}
+
+function computePayoffs(terminals, K, optType){
+  return terminals.map(st=>{
+    if(optType==='call') return Math.max(st-K,0);
+    if(optType==='put') return Math.max(K-st,0);
+    if(optType==='straddle') return Math.max(st-K,0)+Math.max(K-st,0);
+  });
+}
+
+function destroyChart(id){ if(charts[id]){ charts[id].destroy(); delete charts[id]; } }
+
+function makeHistogram(data, bins){
+  const mn=Math.min(...data), mx=Math.max(...data);
+  const bw=(mx-mn)/bins;
+  const counts=new Array(bins).fill(0);
+  data.forEach(v=>{ let i=Math.floor((v-mn)/bw); if(i===bins)i=bins-1; counts[i]++; });
+  const labels=counts.map((_,i)=>(mn+i*bw+bw/2).toFixed(1));
+  return {labels, counts, bw, mn, mx};
+}
+
+function render(){
+  const S=+$('S').value, K=+$('K').value;
+  const sigma=+$('sigma').value/100, r=+$('r').value/100;
+  const T=+$('T').value, N=+$('N').value;
+
+  const bs=bsPrice(S,K,T,r,sigma);
+  const {terminals, samplePaths}=runMC(S,K,T,r,sigma,N);
+  const discount=Math.exp(-r*T);
+
+  const callPayoffs=computePayoffs(terminals,K,'call');
+  const putPayoffs=computePayoffs(terminals,K,'put');
+  const mcCall=(callPayoffs.reduce((a,b)=>a+b,0)/N)*discount;
+  const mcPut=(putPayoffs.reduce((a,b)=>a+b,0)/N)*discount;
+
+  $('metrics').innerHTML=`
+    <div class="metric"><div class="metric-label">BS call price</div><div class="metric-value blue">₹${bs.call.toFixed(2)}</div><div class="metric-sub">Analytical</div></div>
+    <div class="metric"><div class="metric-label">MC call price</div><div class="metric-value green">₹${mcCall.toFixed(2)}</div><div class="metric-sub">Simulated</div></div>
+    <div class="metric"><div class="metric-label">BS put price</div><div class="metric-value blue">₹${bs.put.toFixed(2)}</div><div class="metric-sub">Analytical</div></div>
+    <div class="metric"><div class="metric-label">MC put price</div><div class="metric-value green">₹${mcPut.toFixed(2)}</div><div class="metric-sub">Simulated</div></div>
+    <div class="metric"><div class="metric-label">d₁</div><div class="metric-value">${bs.d1.toFixed(4)}</div><div class="metric-sub">N(d₁)=${norm(bs.d1).toFixed(3)}</div></div>
+    <div class="metric"><div class="metric-label">d₂</div><div class="metric-value">${bs.d2.toFixed(4)}</div><div class="metric-sub">N(d₂)=${norm(bs.d2).toFixed(3)}</div></div>
+    <div class="metric"><div class="metric-label">Moneyness</div><div class="metric-value ${S>K?'green':(S<K?'red':'')}">${S>K?'ITM':(S<K?'OTM':'ATM')}</div><div class="metric-sub">S/K=${(S/K).toFixed(3)}</div></div>
+  `;
+
+  // Price paths chart
+  destroyChart('pathChart');
+  const pathLabels=samplePaths[0].map((_,i)=>i===0?'0':((i*12/252*T*12).toFixed(0)+'w'));
+  charts['pathChart']=new Chart($('pathChart'),{
+    type:'line',
+    data:{
+      labels:pathLabels,
+      datasets:[
+        ...samplePaths.map((p,i)=>({data:p,borderColor:`rgba(24,95,165,${0.15+0.05*(i%5)})`,borderWidth:1,pointRadius:0,tension:0.3,label:''})),
+        {data:Array(pathLabels.length).fill(K),borderColor:'#A32D2D',borderWidth:1.5,borderDash:[4,4],pointRadius:0,label:'Strike K'}
+      ]
+    },
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{enabled:false}},
+      scales:{x:{ticks:{font:{size:10},maxTicksLimit:8},grid:{color:'rgba(0,0,0,0.04)'}},
+              y:{ticks:{font:{size:10},callback:v=>'₹'+v.toFixed(0)},grid:{color:'rgba(0,0,0,0.04)'}}}}
+  });
+
+  // Terminal distribution chart
+  const {labels:dLabels,counts:dCounts,bw}=makeHistogram(terminals,40);
+  destroyChart('distChart');
+  charts['distChart']=new Chart($('distChart'),{
+    type:'bar',
+    data:{labels:dLabels,datasets:[
+      {data:dCounts,backgroundColor:'rgba(24,95,165,0.55)',borderWidth:0,label:'S_T'},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},annotation:{annotations:{}}},
+      scales:{x:{ticks:{font:{size:9},maxTicksLimit:8,autoSkip:true},grid:{display:false}},
+              y:{ticks:{font:{size:10}},grid:{color:'rgba(0,0,0,0.04)'}}}}
+  });
+
+  renderVaR(terminals, K, r, T, bs, discount);
+  renderGreeks(S, K, T, r, sigma);
+}
+
+function renderVaR(terminals, K, r, T, bs, discount){
+  const premiumMap={call:bs.call, put:bs.put, straddle:bs.call+bs.put};
+  const premium=premiumMap[currentOpt];
+  const payoffs=computePayoffs(terminals,K,currentOpt);
+  const pnl=payoffs.map(p=>p*discount-premium);
+  pnl.sort((a,b)=>a-b);
+  const N=pnl.length;
+  const varIdx=Math.floor(N*0.01);
+  const var99=-pnl[varIdx];
+  const es99=-pnl.slice(0,varIdx).reduce((a,b)=>a+b,0)/varIdx;
+  const prob_profit=pnl.filter(p=>p>0).length/N;
+  const maxLoss=-pnl[0];
+  const maxGain=pnl[N-1];
+  const optNames={call:'call',put:'put',straddle:'straddle'};
+
+  $('var-metrics').innerHTML=`
+    <div class="metric"><div class="metric-label">1-day 99% VaR</div><div class="metric-value red">₹${var99.toFixed(2)}</div><div class="metric-sub">Max loss (99% conf)</div></div>
+    <div class="metric"><div class="metric-label">Expected Shortfall</div><div class="metric-value red">₹${es99.toFixed(2)}</div><div class="metric-sub">Avg loss in tail</div></div>
+    <div class="metric"><div class="metric-label">Premium paid</div><div class="metric-value amber">₹${premium.toFixed(2)}</div><div class="metric-sub">Cost of ${optNames[currentOpt]}</div></div>
+    <div class="metric"><div class="metric-label">Prob. profit</div><div class="metric-value ${prob_profit>0.5?'green':'red'}">${(prob_profit*100).toFixed(1)}%</div><div class="metric-sub">P&L > 0</div></div>
+    <div class="metric"><div class="metric-label">Max loss</div><div class="metric-value red">₹${maxLoss.toFixed(2)}</div><div class="metric-sub">Premium lost</div></div>
+    <div class="metric"><div class="metric-label">Max gain</div><div class="metric-value green">₹${maxGain.toFixed(2)}</div><div class="metric-sub">Unlimited upside</div></div>
+  `;
+
+  $('var-legend').innerHTML=`
+    <span><span class="leg-dot" style="background:#185FA5"></span>P&L distribution</span>
+    <span><span class="leg-dot" style="background:#A32D2D"></span>99% VaR = ₹${var99.toFixed(2)}</span>
+    <span><span class="leg-dot" style="background:#854F0B"></span>ES₉₉ = ₹${es99.toFixed(2)}</span>
+  `;
+
+  const {labels:vLabels,counts:vCounts,mn,mx,bw:vbw}=makeHistogram(pnl,50);
+  const varLine=(-var99-mn)/vbw;
+  const esLine=(-es99-mn)/vbw;
+
+  destroyChart('varChart');
+  charts['varChart']=new Chart($('varChart'),{
+    type:'bar',
+    data:{labels:vLabels,datasets:[
+      {data:vCounts.map((c,i)=>i<=varLine?c:null),backgroundColor:'rgba(163,45,45,0.55)',borderWidth:0,label:'Loss tail'},
+      {data:vCounts.map((c,i)=>i>varLine?c:null),backgroundColor:'rgba(24,95,165,0.45)',borderWidth:0,label:'Gain zone'},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{x:{ticks:{font:{size:9},maxTicksLimit:10,autoSkip:true},grid:{display:false}},
+              y:{ticks:{font:{size:10}},grid:{color:'rgba(0,0,0,0.04)'}}}}
+  });
+
+  const explain={
+    call:`Long call: maximum loss = premium paid (₹${premium.toFixed(2)}). The 99% VaR of ₹${var99.toFixed(2)} ≈ premium because the worst case is full premium loss. ES is slightly higher as it averages the very worst P&L outcomes. Probability of profit is ${(prob_profit*100).toFixed(1)}% — you need the stock to close above ₹${(K+premium).toFixed(2)} (breakeven) to profit.`,
+    put:`Long put: maximum loss = premium paid (₹${premium.toFixed(2)}). VaR of ₹${var99.toFixed(2)} represents near-full premium loss. Put profits when stock falls below breakeven of ₹${(K-premium).toFixed(2)}. Probability of profit: ${(prob_profit*100).toFixed(1)}%.`,
+    straddle:`Long straddle: you buy both call and put, paying combined premium of ₹${premium.toFixed(2)}. You profit from large moves in either direction. Breakevens: ₹${(K-premium).toFixed(2)} (downside) and ₹${(K+premium).toFixed(2)} (upside). VaR = ₹${var99.toFixed(2)}, which occurs when S_T ≈ K (no large move). Prob. profit: ${(prob_profit*100).toFixed(1)}%.`
+  };
+  $('var-explain').textContent=explain[currentOpt];
+}
+
+function renderGreeks(S,K,T,r,sigma){
+  const spots=[];
+  for(let s=S*0.5;s<=S*1.5;s+=S*0.02) spots.push(Math.round(s*10)/10);
+  const dCall=[],dPut=[],gam=[],veg=[],thCall=[],thPut=[];
+  spots.forEach(s=>{
+    const g=bsGreeks(s,K,T,r,sigma);
+    dCall.push(+g.deltaCall.toFixed(4));
+    dPut.push(+g.deltaPut.toFixed(4));
+    gam.push(+(g.gamma*1000).toFixed(4));
+    veg.push(+g.vega.toFixed(4));
+    thCall.push(+g.thetaCall.toFixed(4));
+    thPut.push(+g.thetaPut.toFixed(4));
+  });
+  const strikeIdx=spots.findIndex(s=>s>=K);
+  const makeAnnotLine=()=>({type:'line',xMin:strikeIdx,xMax:strikeIdx,borderColor:'rgba(136,135,128,0.6)',borderWidth:1.5,borderDash:[3,3]});
+
+  const greekOpts=(yLabel,showLegend=false)=>({
+    responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:showLegend,labels:{font:{size:9},boxWidth:10}},tooltip:{callbacks:{title:items=>'S=₹'+spots[items[0].dataIndex]}}},
+    scales:{x:{ticks:{font:{size:8},maxTicksLimit:5,callback:(_,i)=>i%10===0?'₹'+spots[i].toFixed(0):''},grid:{display:false}},
+            y:{ticks:{font:{size:9}},grid:{color:'rgba(0,0,0,0.04)'},title:{display:true,text:yLabel,font:{size:9},color:'#888'}}}
+  });
+
+  ['deltaChart','gammaChart','vegaChart','thetaChart'].forEach(destroyChart);
+
+  charts['deltaChart']=new Chart($('deltaChart'),{type:'line',data:{labels:spots,datasets:[
+    {data:dCall,borderColor:'#185FA5',borderWidth:1.5,pointRadius:0,label:'Call Δ',tension:0.3},
+    {data:dPut,borderColor:'#A32D2D',borderWidth:1.5,pointRadius:0,label:'Put Δ',tension:0.3},
+    {data:spots.map(()=>0),borderColor:'rgba(136,135,128,0.3)',borderWidth:0.5,pointRadius:0,label:'',borderDash:[2,2]},
+  ]},options:greekOpts('Delta',true)});
+
+  charts['gammaChart']=new Chart($('gammaChart'),{type:'line',data:{labels:spots,datasets:[
+    {data:gam,borderColor:'#185FA5',borderWidth:1.5,pointRadius:0,label:'Γ ×10⁻³',tension:0.3},
+  ]},options:greekOpts('Gamma ×10⁻³')});
+
+  charts['vegaChart']=new Chart($('vegaChart'),{type:'line',data:{labels:spots,datasets:[
+    {data:veg,borderColor:'#185FA5',borderWidth:1.5,pointRadius:0,label:'Vega',tension:0.3},
+  ]},options:greekOpts('Vega')});
+
+  charts['thetaChart']=new Chart($('thetaChart'),{type:'line',data:{labels:spots,datasets:[
+    {data:thCall,borderColor:'#185FA5',borderWidth:1.5,pointRadius:0,label:'Call θ',tension:0.3},
+    {data:thPut,borderColor:'#A32D2D',borderWidth:1.5,pointRadius:0,label:'Put θ',tension:0.3},
+  ]},options:greekOpts('Theta/day',true)});
+}
+
+['S','K','sigma','r','T','N'].forEach(id=>{
+  $(id).addEventListener('input',()=>{
+    const v=+$(id).value;
+    const fmts={S:'₹'+v,K:'₹'+v,sigma:v+'%',r:v+'%',T:v+'yr',N:v>=1000?Math.round(v/1000)+'k':v};
+    $(id+'v').textContent=fmts[id];
+  });
+});
+
+document.querySelectorAll('.tab').forEach(t=>{
+  t.addEventListener('click',()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    currentOpt=t.dataset.opt;
+    const S=+$('S').value,K=+$('K').value,sigma=+$('sigma').value/100,r=+$('r').value/100,T=+$('T').value,N=+$('N').value;
+    const bs=bsPrice(S,K,T,r,sigma);
+    const discount=Math.exp(-r*T);
+    const {terminals}=runMC(S,K,T,r,sigma,N);
+    renderVaR(terminals,K,r,T,bs,discount);
+  });
+});
+
+$('runBtn').addEventListener('click',render);
+render();
+</script>
+<footer class="page-footer">Built with Black-Scholes analytics and Monte Carlo (GBM, antithetic variates) simulation &middot; Chart.js</footer>
+</div>
+</body>
+</html>
